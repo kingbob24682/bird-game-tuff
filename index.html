@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flappy Cartoon Bird</title>
 <style>
-  html, body { margin:0; padding:0; overflow:hidden; touch-action: manipulation; }
-  canvas { display:block; background:#87CEEB; }
-  #ui { position:absolute; top:10px; left:10px; font-family: Arial,sans-serif; color:black; z-index:10; }
-  button { font-size:16px; margin-right:5px; }
+html, body { margin:0; padding:0; overflow:hidden; touch-action: manipulation; }
+canvas { display:block; background:#87CEEB; }
+#ui { position:absolute; top:10px; left:10px; font-family: Arial,sans-serif; color:black; z-index:10; }
+button { font-size:16px; margin-right:5px; }
 </style>
 </head>
 <body>
@@ -31,24 +31,40 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // ----------------- Assets -----------------
-// Cartoon bird image (replace with your own if you want)
-const birdImg = new Image();
-birdImg.src = "https://i.imgur.com/F1U5Xqh.png"; // Example cartoon bird
+// Animated cartoon bird frames
+const birdFrames = [];
+for(let i=1;i<=3;i++){
+    const img = new Image();
+    img.src = `https://i.imgur.com/CartoonBird${i}.png`; // Replace with 3 cartoon bird wing frames
+    birdFrames.push(img);
+}
 
-// Pipe image (green pipe style)
+// Pipe image
 const pipeImg = new Image();
 pipeImg.src = "https://i.imgur.com/gC2KhH2.png"; 
 
-// Background image (cartoon sky or Mario style optional)
+// Coin image
+const coinImg = new Image();
+coinImg.src = "https://i.imgur.com/5JdVQvG.png"; // small coin
+
+// Background layers
 const bgImg = new Image();
-bgImg.src = "https://i.imgur.com/ekqO0qA.jpg";
+bgImg.src = "https://i.imgur.com/ekqO0qA.jpg"; // Sky
+
+const cloudsImg = new Image();
+cloudsImg.src = "https://i.imgur.com/Clouds.png"; // Clouds layer
+
+const groundImg = new Image();
+groundImg.src = "https://i.imgur.com/Ground.png"; // Ground layer
 
 // ----------------- Game Variables -----------------
-let bird = { x: canvas.width/4, y: canvas.height/2, width: 50, height: 50, vel: 0 };
+let bird = { x: canvas.width/4, y: canvas.height/2, width: 50, height: 50, vel: 0, frame:0 };
 let pipes = [];
+let coins = [];
 let score = 0;
 let gravity = 0.5;
 let flap = -10;
+let frameCount = 0;
 
 // Difficulty settings
 let difficulties = {
@@ -68,9 +84,11 @@ window.addEventListener("resize", () => { canvas.width = window.innerWidth; canv
 function setDifficulty(level) {
   currentDifficulty = level;
   pipes = [];
+  coins = [];
   bird.y = canvas.height/2;
   bird.vel = 0;
   score = 0;
+  frameCount = 0;
   document.getElementById("score").innerText = "Score: 0";
 }
 
@@ -80,7 +98,12 @@ function createPipe() {
   pipes.push({ x: canvas.width, top: topHeight, width: 80, passed: false });
 }
 
+function createCoin(pipe) {
+  coins.push({ x: pipe.x + 40, y: pipe.top + difficulties[currentDifficulty].pipeGap/2, collected:false, radius:15 });
+}
+
 function update() {
+  frameCount++;
   // Bird physics
   bird.vel += gravity;
   bird.y += bird.vel;
@@ -89,7 +112,10 @@ function update() {
 
   // Pipes
   let now = Date.now();
-  if (now - lastPipeTime > difficulties[currentDifficulty].spawnTime) { createPipe(); lastPipeTime = now; }
+  if (now - lastPipeTime > difficulties[currentDifficulty].spawnTime) { 
+    createPipe(); 
+    lastPipeTime = now; 
+  }
 
   let speed = difficulties[currentDifficulty].pipeSpeed;
   pipes.forEach(pipe => {
@@ -110,30 +136,61 @@ function update() {
       score++;
       document.getElementById("score").innerText = "Score: " + score;
     }
+
+    // Coin spawn
+    if (!pipe.coinCreated && pipe.x + pipe.width < canvas.width - 100) {
+      createCoin(pipe);
+      pipe.coinCreated = true;
+    }
   });
 
   pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+
+  // Coins
+  coins.forEach(coin => {
+    coin.x -= speed;
+    // Check collection
+    if(!coin.collected && Math.abs(bird.x - coin.x) < bird.width/2 + coin.radius && Math.abs(bird.y - coin.y) < bird.height/2 + coin.radius){
+      coin.collected = true;
+      score += 5; // coins give extra points
+      document.getElementById("score").innerText = "Score: " + score;
+    }
+  });
+  coins = coins.filter(c => !c.collected && c.x + c.radius > 0);
+
+  // Animate bird frame
+  if(frameCount % 5 === 0) bird.frame = (bird.frame + 1) % birdFrames.length;
 }
 
 function draw() {
   // Background
-  if (bgImg.complete) ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  if(bgImg.complete) ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
   else ctx.fillStyle="#87CEEB"; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Clouds
+  if(cloudsImg.complete) ctx.drawImage(cloudsImg,0,50,canvas.width,100);
 
   // Pipes
   pipes.forEach(pipe => {
-    if (pipeImg.complete) {
-      ctx.drawImage(pipeImg, pipe.x, 0, pipe.width, pipe.top);
-      ctx.drawImage(pipeImg, pipe.x, pipe.top + difficulties[currentDifficulty].pipeGap, pipe.width, canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap);
+    if(pipeImg.complete){
+      ctx.drawImage(pipeImg,pipe.x,0,pipe.width,pipe.top);
+      ctx.drawImage(pipeImg,pipe.x,pipe.top + difficulties[currentDifficulty].pipeGap,pipe.width,canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap);
     } else { ctx.fillStyle="green"; ctx.fillRect(pipe.x,0,pipe.width,pipe.top); ctx.fillRect(pipe.x,pipe.top + difficulties[currentDifficulty].pipeGap,pipe.width,canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap); }
   });
 
+  // Coins
+  coins.forEach(coin => { if(coinImg.complete) ctx.drawImage(coinImg,coin.x-coin.radius,coin.y-coin.radius,coin.radius*2,coin.radius*2); else { ctx.fillStyle="gold"; ctx.beginPath(); ctx.arc(coin.x,coin.y,coin.radius,0,Math.PI*2); ctx.fill(); } });
+
+  // Ground
+  if(groundImg.complete) ctx.drawImage(groundImg,0,canvas.height-50,canvas.width,50); 
+
   // Bird
-  if (birdImg.complete) ctx.drawImage(birdImg, bird.x - bird.width/2, bird.y - bird.height/2, bird.width, bird.height);
+  const bImg = birdFrames[bird.frame];
+  if(bImg.complete) ctx.drawImage(bImg,bird.x - bird.width/2,bird.y - bird.height/2,bird.width,bird.height);
   else { ctx.fillStyle="yellow"; ctx.fillRect(bird.x-25,bird.y-25,50,50); }
 }
 
-function loop() { update(); draw(); requestAnimationFrame(loop); }
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
 loop();
 </script>
 </body>
