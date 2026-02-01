@@ -1,264 +1,237 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flappy Cartoon Bird - Animated Previews</title>
-<style>
-html,body{margin:0;padding:0;overflow:hidden;font-family:Arial,sans-serif;}
-canvas{display:block;background:#87CEEB;}
-#home,#gameOver{position:absolute;top:0;left:0;width:100%;height:100%;
-display:flex;flex-direction:column;justify-content:center;align-items:center;background:#87CEEB;z-index:10;}
-#birdSelection img{width:60px;height:60px;margin:0 5px;cursor:pointer;border:2px solid transparent;}
-#birdSelection img.selected{border-color:red;}
-#drawCanvas{border:2px solid black;margin:10px;}
-button{font-size:16px;margin-top:5px;padding:6px 10px;cursor:pointer;}
-#ui{position:absolute;top:12px;left:12px;color:black;z-index:11;}
-#customBirdsContainer{display:flex;flex-wrap:wrap;margin-top:10px;}
-.customBirdThumb{position:relative;margin:5px;display:flex;justify-content:center;align-items:center;}
-.deleteBtn{position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:12px;cursor:pointer;}
-</style>
-</head>
-<body>
+import pygame
+import random
+import sys
+import time
 
-<!-- Home Screen -->
-<div id="home">
-<h1>Flappy Cartoon Bird</h1>
+# ======================
+# Initialization
+# ======================
+pygame.init()
 
-<p>Draw your own bird:</p>
-<canvas id="drawCanvas" width="120" height="120"></canvas>
-<div>
-<button id="clearBtn">Clear</button>
-<button id="saveBtn">Save Bird</button>
-</div>
+# Screen
+WIDTH, HEIGHT = 600, 400
+win = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Minion Mayhem Ultimate 🍌🐵")
 
-<p>Choose from birds:</p>
-<div id="birdSelection">
-  <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird1.png" data-index="0" class="selected">
-  <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird2.png" data-index="1">
-  <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird3.png" data-index="2">
-</div>
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0,0,0)
+YELLOW = (255,255,0)
+BLUE = (0,0,255)
 
-<p>Your Custom Birds:</p>
-<div id="customBirdsContainer"></div>
+# Clock
+clock = pygame.time.Clock()
 
-<button id="playBtn">Play</button>
-</div>
+# ======================
+# Assets (replace with your images if available)
+# ======================
+try:
+    minion_img = pygame.image.load("assets/minion.png")
+    banana_img = pygame.image.load("assets/banana.png")
+    obstacle_img = pygame.image.load("assets/obstacle.png")
+    bg_img = pygame.image.load("assets/bg.png")
+except:
+    # Placeholder shapes if no images
+    minion_img = pygame.Surface((50,60))
+    minion_img.fill(BLUE)
+    banana_img = pygame.Surface((30,40))
+    banana_img.fill(YELLOW)
+    obstacle_img = pygame.Surface((50,50))
+    obstacle_img.fill(BLACK)
+    bg_img = pygame.Surface((WIDTH,HEIGHT))
+    bg_img.fill(WHITE)
 
-<!-- Game Over -->
-<div id="gameOver" style="display:none;">
-<h1>Game Over</h1>
-<p id="finalScore">Score: 0</p>
-<button id="restartBtn">Restart</button>
-</div>
+# ======================
+# Game Variables
+# ======================
+score = 0
+energy = 5
 
-<div id="ui" style="display:none;">
-<span id="score">Score: 0</span> | Coins: <span id="coins">0</span><br>
-Difficulty:
-<button onclick="setDifficulty('Easy')">Easy</button>
-<button onclick="setDifficulty('Classic')">Classic</button>
-<button onclick="setDifficulty('Hard')">Hard</button>
-</div>
+# Minion Endless Runner
+minion_x = WIDTH//2 - 25
+minion_y = HEIGHT - 70
+minion_speed = 7
 
-<canvas id="gameCanvas"></canvas>
+obstacles = []
+bananas = []
+OBSTACLE_WIDTH, OBSTACLE_HEIGHT = 50,50
+BANANA_WIDTH, BANANA_HEIGHT = 30,40
+obstacle_speed = 5
+spawn_timer = 0
 
-<script>
-// --- Bird Drawing ---
-const drawCanvas=document.getElementById("drawCanvas");
-const dCtx=drawCanvas.getContext("2d");
-let drawing=false;
-function drawEvent(x,y){dCtx.fillStyle="red";dCtx.beginPath();dCtx.arc(x,y,5,0,Math.PI*2);dCtx.fill();}
-drawCanvas.addEventListener("mousedown",()=>drawing=true);
-drawCanvas.addEventListener("mouseup",()=>drawing=false);
-drawCanvas.addEventListener("mouseleave",()=>drawing=false);
-drawCanvas.addEventListener("mousemove",e=>{if(drawing){const r=drawCanvas.getBoundingClientRect();drawEvent(e.clientX-r.left,e.clientY-r.top);}});
-drawCanvas.addEventListener("touchstart",()=>drawing=true);
-drawCanvas.addEventListener("touchend",()=>drawing=false);
-drawCanvas.addEventListener("touchmove",e=>{if(drawing){e.preventDefault();const r=drawCanvas.getBoundingClientRect();for(let t of e.touches){drawEvent(t.clientX-r.left,t.clientY-r.top);}}},{passive:false});
-document.getElementById("clearBtn").onclick=()=>{dCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);};
-
-// --- Bird Management ---
-let customBirds=[]; // Image objects
-let allBirds=[]; // all birds (pre-made + custom)
-let selectedBirdIndex=0;
-
-// Pre-made birds
-const preBirds=[
-"https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird1.png",
-"https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird2.png",
-"https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird3.png"
-];
-preBirds.forEach(src=>{const i=new Image();i.src=src;allBirds.push(i);});
-
-// Save custom bird
-document.getElementById("saveBtn").onclick=()=>{
-  const img=new Image(); img.src=drawCanvas.toDataURL();
-  customBirds.push(img); allBirds.push(img); selectedBirdIndex=allBirds.length-1;
-  updateCustomBirdsUI();
-  alert("Bird saved! Click it to select, or press delete to remove.");
-};
-
-// Update custom bird thumbnails
-function updateCustomBirdsUI(){
-  const container=document.getElementById("customBirdsContainer");
-  container.innerHTML="";
-  customBirds.forEach((b,i)=>{
-    const div=document.createElement("div"); div.className="customBirdThumb";
-    const imgEl=document.createElement("canvas"); imgEl.width=60; imgEl.height=60;
-    const ctxImg=imgEl.getContext("2d");
-    div.appendChild(imgEl);
-    const delBtn=document.createElement("button"); delBtn.className="deleteBtn"; delBtn.innerText="×"; delBtn.onclick=()=>{deleteCustomBird(i);};
-    div.appendChild(delBtn);
-    container.appendChild(div);
-  });
+# Rooms for adventure
+rooms = {
+    "Lab": ["Kitchen", "Vault"],
+    "Kitchen": ["Lab", "Garden"],
+    "Garden": ["Kitchen", "Secret Lair"],
+    "Vault": ["Lab"],
+    "Secret Lair": ["Garden"]
 }
-
-// Delete custom bird
-function deleteCustomBird(i){
-  if(confirm("Delete this custom bird?")){
-    allBirds.splice(preBirds.length+i,1);
-    customBirds.splice(i,1);
-    if(selectedBirdIndex>=allBirds.length) selectedBirdIndex=allBirds.length-1;
-    updateCustomBirdsUI();
-  }
+room_descriptions = {
+    "Lab":"Gru's Lab. Gadgets are buzzing!",
+    "Kitchen":"The kitchen smells sweet! 🍌",
+    "Garden":"Sunny garden. Bees flying!",
+    "Vault":"Vault full of treasures!",
+    "Secret Lair":"Villain spotted! Watch out!"
 }
+current_room = "Lab"
 
-// Pre-made bird selection
-document.querySelectorAll("#birdSelection img").forEach(img=>{
-  img.addEventListener("click",()=>{
-    document.querySelectorAll("#birdSelection img").forEach(i=>i.classList.remove("selected"));
-    img.classList.add("selected");
-    selectedBirdIndex=parseInt(img.dataset.index);
-  });
-});
-function updateSelection(){
-  document.querySelectorAll("#birdSelection img").forEach(i=>i.classList.remove("selected"));
-  if(selectedBirdIndex<preBirds.length){
-    const img=document.querySelector(`#birdSelection img[data-index='${selectedBirdIndex}']`);
-    if(img) img.classList.add("selected");
-  }
-}
+font = pygame.font.SysFont(None,30)
 
-// --- Bird Preview Animation ---
-let previewFrame=0;
-function animatePreviews(){
-  previewFrame+=0.05;
-  const container=document.getElementById("customBirdsContainer");
-  container.querySelectorAll(".customBirdThumb canvas").forEach((c,i)=>{
-    const ctxC=c.getContext("2d");
-    ctxC.clearRect(0,0,c.width,c.height);
-    const yOffset=Math.sin(previewFrame+i)*5+c.height/2;
-    ctxC.drawImage(customBirds[i],c.width/2-30,yOffset-30,60,60);
-  });
-  requestAnimationFrame(animatePreviews);
-}
-animatePreviews();
+# ======================
+# Functions
+# ======================
+def minion_ascii():
+    print(r"""
+     ⠀⠀⠀⠀⠀⢀⣠⣤⣤⣤⣀⠀⠀⠀⠀
+     ⠀⠀⠀⠀⣴⣿⡿⠿⠿⢿⣿⣦⠀⠀
+     ⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⢸⣿⡇⠀
+     ⠀⠀⠀⢸⣿⡇ ⠀ ⠀⠀⠀⢸⣿⡇⠀
+     ⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⢸⣿⡇⠀
+     ⠀⠀⠀⠸⣿⣧⣀⣀⣀⣴⣿⡇⠀⠀
+     ⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⠟⠁⠀⠀
+    """)
 
-// --- Game Canvas ---
-const canvas=document.getElementById("gameCanvas");
-const ctx=canvas.getContext("2d");
-const bgImg=new Image(); bgImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/sky.png";
-const cloudImg=new Image(); cloudImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/clouds.png";
-const groundImg=new Image(); groundImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/ground.png";
-const coinImg=new Image(); coinImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/coin.png";
-const pipeImg=new Image(); pipeImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/pipe.png";
+def random_event():
+    global energy, score
+    event = random.choice(["slip","prank","banana_bonus","nothing","boss"])
+    if event=="slip":
+        energy-=1
+        print("Oops! Slipped on a banana peel! Energy -1")
+    elif event=="prank":
+        energy-=1
+        print("Minion prank! Energy -1")
+    elif event=="banana_bonus":
+        bonus=random.randint(1,3)
+        score+=bonus
+        print(f"Lucky! +{bonus} bananas!")
+    elif event=="boss":
+        boss_fight()
+    else:
+        print("Nothing exciting happens.")
 
-let bird={x:0,y:0,width:0,height:0,vel:0};
-let pipes=[],coins=[],score=0,coinCount=0;
-let gravity=0.5,flap=-10,frameCount=0;
-let pipeGap,pipeSpeed,spawnTime,lastPipeTime=0;
-let gameStarted=false;
-let cloudOffset=0;
-const difficulties={Easy:{pipeSpeed:3,pipeGap:0.4,spawnTime:2000},Classic:{pipeSpeed:5,pipeGap:0.3,spawnTime:1500},Hard:{pipeSpeed:7,pipeGap:0.25,spawnTime:1200}};
-let currentDifficulty="Classic";
+def banana_mini_game():
+    global score
+    print("\nMini-Game: Guess the Banana Number 1-5")
+    number=random.randint(1,5)
+    guess=input("Your guess: ")
+    if guess.isdigit() and int(guess)==number:
+        print("Correct! +3 bananas")
+        score+=3
+    else:
+        print(f"Wrong! Number was {number}")
 
-// --- UI ---
-document.getElementById("playBtn").addEventListener("click",()=>{
-  document.getElementById("home").style.display="none"; document.getElementById("ui").style.display="block";
-  initCanvas(); gameStarted=true;
-});
-document.getElementById("restartBtn").addEventListener("click",()=>{
-  document.getElementById("gameOver").style.display="none"; document.getElementById("ui").style.display="block";
-  initCanvas(); gameStarted=true;
-});
-function setDifficulty(level){currentDifficulty=level; initCanvas();}
+def boss_fight():
+    global score, energy
+    print("\nBoss Alert! Vector appears!")
+    minion_ascii()
+    success=random.choice([True,False])
+    if success:
+        print("Hit Vector! +5 bananas")
+        score+=5
+    else:
+        print("Vector zapped you! Energy -2")
+        energy-=2
 
-// --- Canvas Setup ---
-function initCanvas(){
-  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-  bird.x=canvas.width*0.25; bird.y=canvas.height/2;
-  bird.width=canvas.width*0.07; bird.height=bird.width; bird.vel=0;
-  pipes=[]; coins=[]; score=0; coinCount=0; frameCount=0;
-  pipeGap=canvas.height*difficulties[currentDifficulty].pipeGap;
-  pipeSpeed=difficulties[currentDifficulty].pipeSpeed;
-  spawnTime=difficulties[currentDifficulty].spawnTime;
-}
-window.addEventListener("resize",initCanvas);
+# ======================
+# Main Game Loop
+# ======================
+running=True
+mode="menu"
 
-// --- Input ---
-canvas.addEventListener("mousedown",()=>{if(gameStarted)bird.vel=flap;});
-canvas.addEventListener("touchstart",()=>{if(gameStarted)bird.vel=flap;});
+while running:
+    if mode=="menu":
+        win.fill(WHITE)
+        title=font.render("Minion Mayhem Ultimate",True,BLACK)
+        run_mode=font.render("Press R for Runner, A for Adventure Mode",True,BLACK)
+        win.blit(title,(100,100))
+        win.blit(run_mode,(50,200))
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type==pygame.QUIT: running=False
+            if event.type==pygame.KEYDOWN:
+                if event.key==pygame.K_r: mode="runner"
+                if event.key==pygame.K_a: mode="adventure"
+        continue
 
-// --- Pipes & Coins ---
-function createPipe(){
-  const top=Math.random()*(canvas.height-pipeGap-80)+40;
-  pipes.push({x:canvas.width,top,width:canvas.width*0.12,passed:false});
-  coins.push({x:canvas.width+canvas.width*0.06,y:top+pipeGap/2,width:30,height:30,collected:false});
-}
+    # ======================
+    # Adventure Mode
+    # ======================
+    if mode=="adventure":
+        print(f"\nYou are in {current_room}. {room_descriptions[current_room]}")
+        print(f"Bananas: {score}, Energy: {energy}")
+        print("1.Move 2.Search 3.Mini-Game 4.Rest")
+        choice=input("> ")
+        if choice=="1":
+            print("Where to?")
+            for i, r in enumerate(rooms[current_room]):
+                print(f"{i+1}.{r}")
+            c=input("> ")
+            if c.isdigit() and 1<=int(c)<=len(rooms[current_room]):
+                current_room=rooms[current_room][int(c)-1]
+                random_event()
+            else:
+                print("Invalid room.")
+        elif choice=="2":
+            found=random.randint(1,3)
+            score+=found
+            print(f"Found {found} bananas!")
+            random_event()
+        elif choice=="3":
+            banana_mini_game()
+        elif choice=="4":
+            energy+=1
+            print("Rested +1 energy")
+        else:
+            print("Pick 1-4.")
+        if energy<=0:
+            print(f"Game Over! Bananas collected: {score}")
+            running=False
 
-// --- Update ---
-function update(){
-  frameCount++; cloudOffset+=0.3;
-  bird.vel+=gravity; bird.y+=bird.vel;
-  if(bird.y+bird.height/2>canvas.height) bird.y=canvas.height-bird.height/2,bird.vel=0;
-  if(bird.y-bird.height/2<0) bird.y=bird.height/2,bird.vel=0;
-  const now=Date.now();
-  if(now-lastPipeTime>spawnTime){ createPipe(); lastPipeTime=now; }
+    # ======================
+    # Runner Mode
+    # ======================
+    if mode=="runner":
+        win.blit(bg_img,(0,0))
+        spawn_timer+=1
+        if spawn_timer>30:
+            spawn_timer=0
+            if random.random()<0.6:
+                obstacles.append(pygame.Rect(random.randint(0,WIDTH-OBSTACLE_WIDTH),-OBSTACLE_HEIGHT,OBSTACLE_WIDTH,OBSTACLE_HEIGHT))
+            else:
+                bananas.append(pygame.Rect(random.randint(0,WIDTH-BANANA_WIDTH),-BANANA_HEIGHT,BANANA_WIDTH,BANANA_HEIGHT))
 
-  pipes.forEach(pipe=>{
-    pipe.x-=pipeSpeed;
-    if(bird.x+bird.width/2>pipe.x && bird.x-bird.width/2<pipe.x+pipe.width &&
-      (bird.y-bird.height/2<pipe.top || bird.y+bird.height/2>pipe.top+pipeGap)){ endGame(); }
-    if(!pipe.passed && pipe.x+pipe.width<bird.x){ pipe.passed=true; score++; document.getElementById("score").innerText="Score: "+score; }
-  });
-  pipes=pipes.filter(p=>p.x+p.width>0);
+        for event in pygame.event.get():
+            if event.type==pygame.QUIT:
+                running=False
 
-  coins.forEach(c=>{
-    c.x-=pipeSpeed;
-    if(!c.collected && bird.x+bird.width/2>c.x && bird.x-bird.width/2<c.x+c.width &&
-      bird.y+bird.height/2>c.y && bird.y-bird.height/2<c.y+c.height){ c.collected=true; coinCount++; document.getElementById("coins").innerText=coinCount; }
-  });
-  coins=coins.filter(c=>c.x+c.width>0);
-}
+        keys=pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and minion_x>0: minion_x-=minion_speed
+        if keys[pygame.K_RIGHT] and minion_x<WIDTH-50: minion_x+=minion_speed
 
-// --- Draw ---
-function draw(){
-  if(bgImg.complete) ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
-  if(cloudImg.complete){
-    ctx.drawImage(cloudImg,-cloudOffset%canvas.width,50,canvas.width,120);
-    ctx.drawImage(cloudImg,canvas.width-cloudOffset%canvas.width,50,canvas.width,120);
-  }
-  pipes.forEach(pipe=>{
-    if(pipeImg.complete) ctx.drawImage(pipeImg,pipe.x,0,pipe.width,pipe.top);
-    if(pipeImg.complete) ctx.drawImage(pipeImg,pipe.x,pipe.top+pipeGap,pipe.width,canvas.height-pipe.top-pipeGap);
-  });
-  coins.forEach(c=>{ if(!c.collected && coinImg.complete) ctx.drawImage(coinImg,c.x,c.y,c.width,c.height); });
-  if(groundImg.complete) ctx.drawImage(groundImg,0,canvas.height-50,canvas.width,50);
+        # Move obstacles and bananas
+        for obs in obstacles:
+            obs.y+=obstacle_speed
+            win.blit(obstacle_img,(obs.x,obs.y))
+        for b in bananas:
+            b.y+=obstacle_speed
+            win.blit(banana_img,(b.x,b.y))
 
-  const bImg=allBirds[selectedBirdIndex];
-  if(bImg.complete){
-    const yOffset=Math.sin(frameCount*0.1)*5;
-    ctx.drawImage(bImg,bird.x-bird.width/2,bird.y-bird.height/2+yOffset,bird.width,bird.height);
-  }
-}
+        # Collision
+        minion_rect=pygame.Rect(minion_x,minion_y,50,60)
+        for obs in obstacles:
+            if minion_rect.colliderect(obs):
+                print(f"Game Over! Score: {score}")
+                pygame.quit()
+                sys.exit()
+        for b in bananas[:]:
+            if minion_rect.colliderect(b):
+                score+=1
+                bananas.remove(b)
 
-// --- End Game ---
-function endGame(){ gameStarted=false; document.getElementById("gameOver").style.display="flex";
-document.getElementById("finalScore").innerText="Score: "+score+" | Coins: "+coinCount; document.getElementById("ui").style.display="none";}
+        win.blit(minion_img,(minion_x,minion_y))
+        score_text=font.render(f"Bananas: {score}",True,BLACK)
+        win.blit(score_text,(10,10))
 
-// --- Game Loop ---
-function loop(){if(gameStarted){update();draw();} requestAnimationFrame(loop);}
-loop();
-</script>
-
-</body></html>
+        pygame.display.update()
+        clock.tick(30)
