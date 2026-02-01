@@ -3,37 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flappy Bird Web</title>
+<title>Flappy Cartoon Bird</title>
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    touch-action: manipulation;
-  }
-  canvas {
-    display: block;
-    background: #87CEEB; /* Sky blue fallback */
-  }
-  #ui {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-family: Arial, sans-serif;
-    color: black;
-    z-index: 10;
-  }
-  button {
-    font-size: 16px;
-    margin-right: 5px;
-  }
+  html, body { margin:0; padding:0; overflow:hidden; touch-action: manipulation; }
+  canvas { display:block; background:#87CEEB; }
+  #ui { position:absolute; top:10px; left:10px; font-family: Arial,sans-serif; color:black; z-index:10; }
+  button { font-size:16px; margin-right:5px; }
 </style>
 </head>
 <body>
 
 <div id="ui">
   <span id="score">Score: 0</span><br>
-  Mode: 
+  Difficulty: 
   <button onclick="setDifficulty('Easy')">Easy</button>
   <button onclick="setDifficulty('Classic')">Classic</button>
   <button onclick="setDifficulty('Hard')">Hard</button>
@@ -49,12 +31,17 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // ----------------- Assets -----------------
+// Cartoon bird image (replace with your own if you want)
 const birdImg = new Image();
-birdImg.src = "https://i.imgur.com/6M2jzVq.png"; // Replace with your bird image URL
+birdImg.src = "https://i.imgur.com/F1U5Xqh.png"; // Example cartoon bird
+
+// Pipe image (green pipe style)
 const pipeImg = new Image();
-pipeImg.src = "https://i.imgur.com/UwF6eYv.png";  // Replace with your pipe image URL
+pipeImg.src = "https://i.imgur.com/gC2KhH2.png"; 
+
+// Background image (cartoon sky or Mario style optional)
 const bgImg = new Image();
-bgImg.src = "https://i.imgur.com/F1Jj1oI.jpg";    // Replace with your background image URL
+bgImg.src = "https://i.imgur.com/ekqO0qA.jpg";
 
 // ----------------- Game Variables -----------------
 let bird = { x: canvas.width/4, y: canvas.height/2, width: 50, height: 50, vel: 0 };
@@ -75,10 +62,7 @@ let lastPipeTime = 0;
 // ----------------- Input -----------------
 canvas.addEventListener("mousedown", () => { bird.vel = flap; });
 canvas.addEventListener("touchstart", () => { bird.vel = flap; });
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
+window.addEventListener("resize", () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
 // ----------------- Functions -----------------
 function setDifficulty(level) {
@@ -100,21 +84,12 @@ function update() {
   // Bird physics
   bird.vel += gravity;
   bird.y += bird.vel;
-  if (bird.y + bird.height/2 > canvas.height) {
-    bird.y = canvas.height - bird.height/2;
-    bird.vel = 0;
-  }
-  if (bird.y - bird.height/2 < 0) {
-    bird.y = bird.height/2;
-    bird.vel = 0;
-  }
+  if (bird.y + bird.height/2 > canvas.height) { bird.y = canvas.height - bird.height/2; bird.vel = 0; }
+  if (bird.y - bird.height/2 < 0) { bird.y = bird.height/2; bird.vel = 0; }
 
   // Pipes
   let now = Date.now();
-  if (now - lastPipeTime > difficulties[currentDifficulty].spawnTime) {
-    createPipe();
-    lastPipeTime = now;
-  }
+  if (now - lastPipeTime > difficulties[currentDifficulty].spawnTime) { createPipe(); lastPipeTime = now; }
 
   let speed = difficulties[currentDifficulty].pipeSpeed;
   pipes.forEach(pipe => {
@@ -137,38 +112,28 @@ function update() {
     }
   });
 
-  // Remove off-screen pipes
   pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
 }
 
 function draw() {
   // Background
   if (bgImg.complete) ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-  else ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  else ctx.fillStyle="#87CEEB"; ctx.fillRect(0,0,canvas.width,canvas.height);
 
   // Pipes
   pipes.forEach(pipe => {
     if (pipeImg.complete) {
       ctx.drawImage(pipeImg, pipe.x, 0, pipe.width, pipe.top);
       ctx.drawImage(pipeImg, pipe.x, pipe.top + difficulties[currentDifficulty].pipeGap, pipe.width, canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap);
-    } else {
-      ctx.fillStyle = "green";
-      ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
-      ctx.fillRect(pipe.x, pipe.top + difficulties[currentDifficulty].pipeGap, pipe.width, canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap);
-    }
+    } else { ctx.fillStyle="green"; ctx.fillRect(pipe.x,0,pipe.width,pipe.top); ctx.fillRect(pipe.x,pipe.top + difficulties[currentDifficulty].pipeGap,pipe.width,canvas.height - pipe.top - difficulties[currentDifficulty].pipeGap); }
   });
 
   // Bird
   if (birdImg.complete) ctx.drawImage(birdImg, bird.x - bird.width/2, bird.y - bird.height/2, bird.width, bird.height);
-  else { ctx.fillStyle = "yellow"; ctx.fillRect(bird.x-25, bird.y-25, 50, 50); }
+  else { ctx.fillStyle="yellow"; ctx.fillRect(bird.x-25,bird.y-25,50,50); }
 }
 
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
+function loop() { update(); draw(); requestAnimationFrame(loop); }
 loop();
 </script>
 </body>
