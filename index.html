@@ -3,24 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flappy Cartoon Bird Game</title>
+<title>Flappy Cartoon Bird</title>
 <style>
 html, body { margin:0; padding:0; overflow:hidden; font-family:Arial,sans-serif; }
 canvas { display:block; background:#87CEEB; }
-#home {
-  position:absolute; top:0; left:0; width:100%; height:100%;
-  background:#87CEEB; display:flex; flex-direction:column;
-  justify-content:center; align-items:center;
-}
-#birdSelection img {
-  width:60px; height:60px; margin:0 10px;
-  cursor:pointer; border:2px solid transparent;
-}
+#home { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background:#87CEEB; }
+#birdSelection img { width:60px; height:60px; margin:0 10px; cursor:pointer; border:2px solid transparent; }
 #birdSelection img.selected { border-color:red; }
-button { font-size:18px; margin-top:15px; padding:8px 15px; }
-#ui {
-  position:absolute; top:12px; left:12px; color:black; z-index:10;
-}
+button { font-size:18px; margin-top:15px; padding:8px 15px; cursor:pointer; }
+#ui { position:absolute; top:12px; left:12px; color:black; z-index:10; }
 </style>
 </head>
 <body>
@@ -28,9 +19,9 @@ button { font-size:18px; margin-top:15px; padding:8px 15px; }
 <div id="home">
   <h1>Flappy Cartoon Bird</h1>
   <div id="birdSelection">
-    <img src="https://i.imgur.com/3WZbK7j.png" data-index="0" class="selected">
-    <img src="https://i.imgur.com/OdL6XZx.png" data-index="1">
-    <img src="https://i.imgur.com/6fXHe2G.png" data-index="2">
+    <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird1.png" data-index="0" class="selected">
+    <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird2.png" data-index="1">
+    <img src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird3.png" data-index="2">
   </div>
   <button id="playBtn">Play</button>
 </div>
@@ -46,31 +37,31 @@ button { font-size:18px; margin-top:15px; padding:8px 15px; }
 <canvas id="gameCanvas"></canvas>
 
 <script>
-// Canvas
+// ----- Canvas -----
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Bird images (hosted PNG sprites)
+// ----- Images -----
 const birdSprites = [
-  "https://i.imgur.com/3WZbK7j.png",
-  "https://i.imgur.com/OdL6XZx.png",
-  "https://i.imgur.com/6fXHe2G.png"
+  ["https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird1.png"],
+  ["https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird2.png"],
+  ["https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/bird3.png"]
 ];
-let birdFrames = birdSprites.map(src => {
+let birdFrames = birdSprites.map(arr => {
   const img = new Image();
-  img.src = src;
-  return [img]; // single‑frame bird
+  img.src = arr[0];
+  return [img];
 });
 
-// Background & clouds
-const bgImg = new Image(); bgImg.src = "https://i.imgur.com/0WcE6Qz.png"; // blue sky
-const cloudImg = new Image(); cloudImg.src = "https://i.imgur.com/r9L2x5V.png"; // cartoon clouds
-const groundImg = new Image(); groundImg.src = "https://i.imgur.com/KvSg6bm.png"; // cartoon ground
+// Background
+const bgImg = new Image(); bgImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/sky.png";
+const cloudImg = new Image(); cloudImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/clouds.png";
+const groundImg = new Image(); groundImg.src="https://raw.githubusercontent.com/AbelTesfaye/FlappyBirdAssets/main/ground.png";
 
-// Game vars
+// ----- Game vars -----
 let selectedBirdIndex = 0;
 let bird = { x:0, y:0, width:0, height:0, vel:0, frame:0 };
-let pipes = [], score = 0;
+let pipes = [], score=0;
 let gravity=0.5, flap=-10, frameCount=0;
 let pipeGap, pipeSpeed, spawnTime, lastPipeTime=0;
 let gameStarted=false;
@@ -82,24 +73,24 @@ const difficulties = {
 };
 let currentDifficulty="Classic";
 
-// Bird select UI
-document.querySelectorAll("#birdSelection img").forEach(img => {
-  img.addEventListener("click", () => {
-    document.querySelectorAll("#birdSelection img").forEach(i => i.classList.remove("selected"));
+// ----- Bird select UI -----
+document.querySelectorAll("#birdSelection img").forEach(img=>{
+  img.addEventListener("click", ()=>{
+    document.querySelectorAll("#birdSelection img").forEach(i=>i.classList.remove("selected"));
     img.classList.add("selected");
-    selectedBirdIndex = parseInt(img.dataset.index);
+    selectedBirdIndex=parseInt(img.dataset.index);
   });
 });
 
-// Play button
-document.getElementById("playBtn").addEventListener("click", () => {
+// ----- Play button -----
+document.getElementById("playBtn").addEventListener("click", ()=>{
   document.getElementById("home").style.display="none";
   document.getElementById("ui").style.display="block";
   initCanvas();
   gameStarted=true;
 });
 
-// Resize
+// ----- Canvas init -----
 function initCanvas(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -108,85 +99,78 @@ function initCanvas(){
   bird.width = canvas.width*0.07;
   bird.height = bird.width;
   bird.vel = 0;
-  pipes = []; score=0; frameCount=0;
+  pipes=[]; score=0; frameCount=0;
   pipeGap = canvas.height * difficulties[currentDifficulty].pipeGap;
   pipeSpeed = difficulties[currentDifficulty].pipeSpeed;
   spawnTime = difficulties[currentDifficulty].spawnTime;
 }
 window.addEventListener("resize", initCanvas);
 
-// Input
-canvas.addEventListener("mousedown", ()=>{ if(gameStarted) bird.vel = flap; });
-canvas.addEventListener("touchstart", ()=>{ if(gameStarted) bird.vel = flap; });
+// ----- Input -----
+canvas.addEventListener("mousedown", ()=>{ if(gameStarted) bird.vel=flap; });
+canvas.addEventListener("touchstart", ()=>{ if(gameStarted) bird.vel=flap; });
 
-// Create pipes
+// ----- Pipes -----
 function createPipe(){
-  const top = Math.random()*(canvas.height - pipeGap - 80) + 40;
-  pipes.push({ x: canvas.width, top, width:canvas.width*0.1, passed:false });
+  const top = Math.random()*(canvas.height - pipeGap - 80)+40;
+  pipes.push({ x: canvas.width, top, width: canvas.width*0.1, passed:false });
 }
 
+// ----- Difficulty -----
 function setDifficulty(level){ currentDifficulty=level; initCanvas(); }
 
-// Update
+// ----- Update -----
 function update(){
   frameCount++;
-  bird.vel += gravity;
-  bird.y += bird.vel;
-  if(bird.y + bird.height/2 > canvas.height) bird.y = canvas.height - bird.height/2, bird.vel=0;
-  if(bird.y - bird.height/2 < 0) bird.y = bird.height/2, bird.vel=0;
+  bird.vel+=gravity;
+  bird.y+=bird.vel;
+  if(bird.y+bird.height/2>canvas.height) bird.y=canvas.height-bird.height/2, bird.vel=0;
+  if(bird.y-bird.height/2<0) bird.y=bird.height/2, bird.vel=0;
 
   const now = Date.now();
-  if(now - lastPipeTime > spawnTime){ createPipe(); lastPipeTime = now; }
+  if(now-lastPipeTime>spawnTime){ createPipe(); lastPipeTime=now; }
 
-  pipes.forEach(pipe => {
+  pipes.forEach(pipe=>{
     pipe.x -= pipeSpeed;
-    // collision
-    if(bird.x + bird.width/2 > pipe.x &&
-       bird.x - bird.width/2 < pipe.x + pipe.width &&
-       (bird.y - bird.height/2 < pipe.top ||
-        bird.y + bird.height/2 > pipe.top + pipeGap)) {
-      alert("Game Over! Score: " + score);
+    if(bird.x+bird.width/2>pipe.x && bird.x-bird.width/2<pipe.x+pipe.width &&
+      (bird.y-bird.height/2<pipe.top || bird.y+bird.height/2>pipe.top+pipeGap)){
+      alert("Game Over! Score: "+score);
       gameStarted=false;
       document.getElementById("home").style.display="flex";
       document.getElementById("ui").style.display="none";
     }
-    if(!pipe.passed && pipe.x + pipe.width < bird.x){
-      pipe.passed=true; score++;
-      document.getElementById("score").innerText="Score: "+score;
+    if(!pipe.passed && pipe.x+pipe.width<bird.x){
+      pipe.passed=true; score++; document.getElementById("score").innerText="Score: "+score;
     }
   });
-  pipes = pipes.filter(p=> p.x + p.width > 0);
+  pipes = pipes.filter(p=>p.x+p.width>0);
 }
 
-// Draw
+// ----- Draw -----
 function draw(){
   // Background
-  if(bgImg.complete) ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  if(bgImg.complete) ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
   else ctx.fillStyle="#87CEEB", ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // Clouds
-  if(cloudImg.complete) ctx.drawImage(cloudImg, 0, 40, canvas.width, 120);
+  if(cloudImg.complete) ctx.drawImage(cloudImg,0,40,canvas.width,120);
 
   // Pipes
   ctx.fillStyle="green";
-  pipes.forEach(pipe => {
-    ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
-    ctx.fillRect(pipe.x, pipe.top + pipeGap, pipe.width, canvas.height - pipe.top - pipeGap);
+  pipes.forEach(pipe=>{
+    ctx.fillRect(pipe.x,0,pipe.width,pipe.top);
+    ctx.fillRect(pipe.x,pipe.top+pipeGap,pipe.width,canvas.height-pipe.top-pipeGap);
   });
 
   // Ground
-  if(groundImg.complete) ctx.drawImage(groundImg, 0, canvas.height - 50, canvas.width, 50);
+  if(groundImg.complete) ctx.drawImage(groundImg,0,canvas.height-50,canvas.width,50);
 
   // Bird
   const img = birdFrames[selectedBirdIndex][0];
-  if(img.complete) ctx.drawImage(img, bird.x - bird.width/2, bird.y - bird.height/2, bird.width, bird.height);
-  else ctx.fillStyle="yellow", ctx.fillRect(bird.x - bird.width/2, bird.y - bird.height/2, bird.width, bird.height);
+  if(img.complete) ctx.drawImage(img,bird.x-bird.width/2,bird.y-bird.height/2,bird.width,bird.height);
+  else ctx.fillStyle="yellow", ctx.fillRect(bird.x-bird.width/2,bird.y-bird.height/2,bird.width,bird.height);
 }
 
-function loop(){
-  if(gameStarted){ update(); draw(); }
-  requestAnimationFrame(loop);
-}
+// ----- Game loop -----
+function loop(){ if(gameStarted){ update(); draw(); } requestAnimationFrame(loop); }
 loop();
 </script>
 
